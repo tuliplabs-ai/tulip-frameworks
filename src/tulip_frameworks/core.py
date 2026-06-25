@@ -146,6 +146,15 @@ def gate_callable(
             return as_json(result) if serialize else result
 
     gated.__name__ = name
+    # Preserve the wrapped tool's signature + docstring so frameworks that build
+    # their arg schema by introspecting the callable (ADK, LlamaIndex, …) see the
+    # real parameters rather than the gated wrapper's ``**kwargs``.
+    try:
+        gated.__signature__ = inspect.signature(fn)  # type: ignore[attr-defined]
+    except (TypeError, ValueError):
+        pass
+    if getattr(fn, "__doc__", None):
+        gated.__doc__ = fn.__doc__
     return gated
 
 

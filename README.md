@@ -61,18 +61,32 @@ pip install "tulip-frameworks[langgraph]"        # LangGraph
 pip install "tulip-frameworks[openai-agents]"    # OpenAI Agents SDK
 pip install "tulip-frameworks[crewai]"           # CrewAI
 pip install "tulip-frameworks[llama-index]"      # LlamaIndex
+pip install "tulip-frameworks[adk]"              # Google ADK
 pip install "tulip-frameworks[all]"              # everything
 ```
 
 `import tulip_frameworks` pulls in **no** framework package; each bridge imports its
 framework lazily and tells you which extra to install if it's missing.
 
+## Three ways Tulip meets the ecosystem (don't conflate them)
+
+This package is for the **first** one — but it helps to see all three, because the same
+five "integrations" people name are actually three different relationships:
+
+- **Gate** — agent *frameworks* whose tools take actions: **LangChain, LangGraph, CrewAI,
+  the OpenAI Agents SDK, LlamaIndex, Google ADK.** This package's `gate_*_tool`.
+- **Compose** — *model-call* gateways (**LiteLLM**, Portkey): they route the model call;
+  Tulip gates the action. They stack, they don't compete. See
+  [`examples/litellm_two_layer.py`](examples/litellm_two_layer.py).
+- **Assure** — *another agent* you don't control (a chatbot, an OpenClaw-style runtime, an
+  endpoint): red-team it as a `Target` with the core SDK's `red_team()`.
+
 ## Status
 
-v0.1 ships bridges for **LangChain, LangGraph, the OpenAI Agents SDK, CrewAI, and
-LlamaIndex**, plus the framework-agnostic core. The bridges to LangChain/LangGraph and
-the OpenAI Agents SDK are the most exercised; CrewAI and LlamaIndex follow the identical
-pattern.
+v0.1 ships gate bridges for **LangChain, LangGraph, the OpenAI Agents SDK, CrewAI,
+LlamaIndex, and Google ADK**, plus the framework-agnostic core. The LangChain/LangGraph
+and OpenAI Agents bridges are the most exercised; CrewAI, LlamaIndex, and ADK follow the
+identical pattern.
 
 One-way dependency on `tulip-agents` (the langchain-core / langchain-community split).
 Apache-2.0. See [the docs](https://tulipagents.ai/integrations/frameworks/).
