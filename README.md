@@ -10,7 +10,7 @@ and wrap the *actions* it takes with Tulip's admission gate.
 
 ```python
 from langchain_core.tools import tool
-from tulip.security import Action, AuditTrail
+from tulip.control import Action, AuditTrail
 from tulip_frameworks.langchain import gate_langchain_tool
 from tulip_frameworks.policy_presets import action_gate_policy
 
@@ -44,8 +44,8 @@ thing that calls the core SDK's `admit()`:
   `(name, kwargs) -> Action` that derives blast radius / environment / kind from the
   call's arguments.
 - **Policy** — `action_gate_policy()` gates on labels + blast radius (use this for
-  ordinary tools); or bring a full `SecurityPolicy` and pass grounded `finding` /
-  `verdict` for the complete trust chain.
+  ordinary tools); or bring a full `ControlPolicy` and pass a grounded `finding`
+  (`Evidence`) / `verdict` (`VerificationResult`) for the complete trust chain.
 - **Soft vs raise** — `mode="soft"` (default) returns an LLM-readable
   *held-for-approval* result the agent loop can react to; `mode="raise"` re-raises
   `AdmissionError` to stop a deterministic pipeline. The audit record is written
