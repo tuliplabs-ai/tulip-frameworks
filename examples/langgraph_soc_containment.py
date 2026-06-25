@@ -33,8 +33,11 @@ async def main() -> None:
     contain = gate_langchain_tool(
         isolate_host,
         action=lambda name, a: Action(
-            name=name, asset=a["host"], blast_radius=1,
-            kind="containment", environment="production",
+            name=name,
+            asset=a["host"],
+            blast_radius=1,
+            kind="containment",
+            environment="production",
         ),
         policy=action_gate_policy(),
         trail=trail,
@@ -44,7 +47,7 @@ async def main() -> None:
 
     # Triage decided to isolate a prod host. The gate holds it for a human:
     held = await contain.ainvoke({"host": "prod-db-01"})
-    print("prod action:", json.loads(held)["status"])   # held_for_approval
+    print("prod action:", json.loads(held)["status"])  # held_for_approval
 
     # A dev host clears policy and runs:
     dev = gate_langchain_tool(

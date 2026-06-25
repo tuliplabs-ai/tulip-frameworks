@@ -52,8 +52,11 @@ async def main() -> None:
     trail = AuditTrail()
     policy = action_gate_policy()
     refund = Action(
-        name="refund", asset="cust:4821", blast_radius=1,
-        kind="payment", environment="production",
+        name="refund",
+        asset="cust:4821",
+        blast_radius=1,
+        kind="payment",
+        environment="production",
     )
 
     async def do_refund() -> str:

@@ -41,9 +41,7 @@ def _require_adk() -> Any:
     try:
         from google.adk.tools import FunctionTool
     except ImportError as exc:  # pragma: no cover - exercised only without the extra
-        raise ImportError(
-            "Google ADK support needs: pip install tulip-frameworks[adk]"
-        ) from exc
+        raise ImportError("Google ADK support needs: pip install tulip-frameworks[adk]") from exc
     return FunctionTool
 
 

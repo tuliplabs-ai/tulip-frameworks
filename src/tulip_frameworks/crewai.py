@@ -37,9 +37,7 @@ def _require_crewai() -> Any:
     try:
         from crewai.tools import BaseTool
     except ImportError as exc:  # pragma: no cover - exercised only without the extra
-        raise ImportError(
-            "CrewAI support needs: pip install tulip-frameworks[crewai]"
-        ) from exc
+        raise ImportError("CrewAI support needs: pip install tulip-frameworks[crewai]") from exc
     return BaseTool
 
 
