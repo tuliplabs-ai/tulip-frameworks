@@ -15,7 +15,7 @@ import asyncio
 import json
 
 from langchain_core.tools import tool
-from tulip.security import Action, AuditTrail
+from tulip.control import Action, AuditTrail
 
 from tulip_frameworks.langchain import gate_langchain_tool
 from tulip_frameworks.policy_presets import action_gate_policy

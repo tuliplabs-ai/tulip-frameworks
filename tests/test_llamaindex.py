@@ -12,7 +12,10 @@ import pytest
 pytest.importorskip("llama_index.core")
 
 from llama_index.core.tools import FunctionTool  # noqa: E402
-from tulip.security import Action, AuditTrail  # noqa: E402
+from tulip.control import (
+    Action,
+    AuditTrail,  # noqa: E402
+)
 
 from tulip_frameworks.llamaindex import gate_llamaindex_tool  # noqa: E402
 from tulip_frameworks.policy_presets import action_gate_policy  # noqa: E402

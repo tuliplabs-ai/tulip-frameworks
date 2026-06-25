@@ -3,11 +3,11 @@
 
 """Policy presets tuned for gating arbitrary framework tools.
 
-The stock :class:`~tulip.security.SecurityPolicy` is tuned for the grounded-finding
-SOC flow: ``require_verification_score=0.8`` means a call with **no** ``Verdict`` is
+The stock :class:`~tulip.security.ControlPolicy` is tuned for the grounded-finding
+SOC flow: ``require_verification_score=0.8`` means a call with **no** ``VerificationResult`` is
 forced to ``require_human``. That is correct when every action answers a verified
 finding — but when you are simply gating ordinary agent tools (a refund, a delete),
-you usually have no ``Verdict``, and the default would hold *everything*.
+you usually have no ``VerificationResult``, and the default would hold *everything*.
 
 :func:`action_gate_policy` flips that: verification is optional, and risk is governed
 by the action's labels (environment / kind / tags) and blast radius instead. A caller
@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from tulip.security import SecurityPolicy
+from tulip.control import ControlPolicy
 
 
 def action_gate_policy(
@@ -27,7 +27,7 @@ def action_gate_policy(
     require_human_for: Iterable[str] = ("production",),
     deny_for: Iterable[str] = ("irreversible",),
     max_blast_radius: int = 1,
-) -> SecurityPolicy:
+) -> ControlPolicy:
     """A policy that gates on labels + blast radius, not on a verification score.
 
     Args:
@@ -36,11 +36,11 @@ def action_gate_policy(
         max_blast_radius: Most assets an action may affect to auto-allow.
 
     Returns:
-        A :class:`~tulip.security.SecurityPolicy` with ``require_verification_score=0``
+        A :class:`~tulip.security.ControlPolicy` with ``require_verification_score=0``
         so an un-verified tool call is allowed unless a label or the blast radius
         trips a hold/deny.
     """
-    return SecurityPolicy(
+    return ControlPolicy(
         require_verification_score=0.0,
         max_blast_radius=max_blast_radius,
         require_human_for=frozenset(require_human_for),

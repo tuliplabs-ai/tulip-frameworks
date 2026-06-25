@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from tulip.security import Action
+from tulip.control import Action
 
 from tulip_frameworks.actions import asset_from_args, default_action, resolve_action
 

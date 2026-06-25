@@ -12,7 +12,10 @@ import pytest
 pytest.importorskip("agents")
 
 from agents import function_tool  # noqa: E402
-from tulip.security import Action, AuditTrail  # noqa: E402
+from tulip.control import (
+    Action,
+    AuditTrail,  # noqa: E402
+)
 
 from tulip_frameworks.openai_agents import gate_openai_tool  # noqa: E402
 from tulip_frameworks.policy_presets import action_gate_policy  # noqa: E402
