@@ -10,38 +10,63 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check:
-    name: lint (+ typecheck/test when core is reachable)
+  lint:
+    name: lint + format
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-
-      # Lint needs no core import — always runs.
-      - name: Lint
+      - name: Ruff
         run: |
           python -m pip install --upgrade pip ruff
           ruff check src tests examples
+          ruff format --check src tests examples
 
-      # typecheck + test need the core (tulip-agents). It isn't on PyPI yet and
-      # the core repo is private, so this gracefully no-ops until the core is
-      # reachable — set CORE_PIP (e.g. a PyPI release, or a tokenised git URL in
-      # the CORE_PIP secret) to enable the full gate. The framework extras are
-      # NOT installed here, so the framework-specific tests importorskip; the
-      # framework-agnostic core + actions tests run.
-      - name: Typecheck + test (when core is reachable)
-        env:
-          CORE_PIP: ${{ secrets.CORE_PIP || 'tulip-agents @ git+https://github.com/tuliplabs-ai/sdk-python.git@main' }}
+  typecheck:
+    name: typecheck (base env)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # Typecheck in a BASE env on purpose: the framework packages are optional
+      # extras, so they are absent here and `ignore_missing_imports` (see pyproject)
+      # types the bridges' lazy imports as Any. tulip-agents>=2 is on PyPI and comes
+      # in as a normal dependency of `pip install -e .`.
+      - name: Install (core only, no framework extras)
         run: |
-          if ! pip install "$CORE_PIP" 2>/dev/null; then
-            echo "::notice::core (tulip-agents) not reachable — skipping typecheck+test. "\
-                 "Publish to PyPI or set the CORE_PIP secret to enable the full gate."
-            exit 0
-          fi
-          pip install -e . --no-deps
-          pip install pytest pytest-asyncio mypy
-          mypy src/tulip_frameworks
-          pytest tests -q
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install mypy
+      - name: Mypy
+        run: mypy src/tulip_frameworks
+
+  test:
+    name: test #${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      # Install the framework extras so the per-framework bridge tests run for real
+      # rather than importorskip-ing. (CrewAI is omitted — its tree is the heaviest
+      # and churniest; its bridge test importorskips, and the bridge follows the
+      # identical pattern as the others.) tulip-agents>=2 comes from PyPI.
+      - name: Install (with framework extras)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[langchain,langgraph,openai-agents,llama-index,adk]"
+          pip install pytest pytest-asyncio
+      # The live-LLM integration tests under tests/integration skip automatically
+      # without an API key and without the langchain-anthropic extra, so CI
+      # exercises the full offline gate without needing any secrets.
+      - name: Test
+        run: pytest tests -q
