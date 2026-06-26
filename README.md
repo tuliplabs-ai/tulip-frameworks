@@ -1,57 +1,38 @@
 # tulip-frameworks
 
-**Drop Tulip's control runtime into the agent framework you already use.**
+**Put Tulip's control gate around the actions your existing agent already takes —
+without rebuilding it on Tulip.**
 
-Tulip is the SDK for *agents you can let act* — every risky action policy-gated,
-human-approvable, and recorded in a tamper-evident audit trail. You don't have to
-rebuild your agent on Tulip to get that. If you already have an agent in
-**LangChain / LangGraph, CrewAI, the OpenAI Agents SDK, or LlamaIndex**, keep it —
-and wrap the *actions* it takes with Tulip's admission gate.
+[Tulip](https://tulipagents.ai) is an agentic framework with a control layer built
+into the core: every action an agent takes runs only after it clears a policy you
+write, pauses for a human when the stakes are high, and is recorded on a
+tamper-evident audit trail. `tulip-frameworks` lets you keep the agent you already
+have — in **LangChain, LangGraph, CrewAI, the OpenAI Agents SDK, LlamaIndex, or
+Google ADK** — and add just that control layer to the tools it calls.
 
-```python
-from langchain_core.tools import tool
-from tulip.control import Action, AuditTrail
-from tulip_frameworks.langchain import gate_langchain_tool
-from tulip_frameworks.policy_presets import action_gate_policy
+You wrap a tool once. From then on, when the agent decides to refund an order,
+disable an account, or run a deploy, the gate decides whether that action is
+allowed, held for a human, or denied — and writes the decision down either way.
 
-@tool
-def refund(order_id: str, amount_usd: float) -> str:
-    "Issue a customer refund."
-    return payments.refund(order_id, amount_usd)
+---
 
-trail = AuditTrail()
-safe_refund = gate_langchain_tool(
-    refund,
-    action=lambda name, a: Action(name=name, asset=a["order_id"],
-        blast_radius=1, kind="payment", environment="production"),
-    policy=action_gate_policy(),   # production → human
-    trail=trail,
-)
-# agent = create_react_agent(model, tools=[safe_refund])
-```
+## Why this exists
 
-Now a production refund is **held for a human**, the decision is on a hash-chained
-trail you can `verify()` and `export_jsonl()`, and a prompt injection that talks the
-model into a thousand refunds still can't get one *executed*. Fool the model; you
-can't talk past the runtime.
+An agent that can only read is easy to trust. An agent that can *act* — move money,
+change accounts, touch production — is not, because the thing deciding to act is a
+language model, and a language model can be talked into things. A prompt injection,
+a confused chain of thought, or a bad retrieval can all end with the model calling
+`refund(order, 1_000_000)`.
 
-## How it works
+The usual answer is "tell the model to be careful" in a system prompt. That is a
+guideline the model can ignore. Tulip's answer is a check in **real code, outside
+the model**, that runs between the decision and the side effect. The model can be
+fooled; it still can't get the action *executed* if your policy says no.
 
-Every bridge is a thin wrapper over one primitive, `gate_callable`, which is the only
-thing that calls the core SDK's `admit()`:
+`tulip-frameworks` is how you get that check without leaving the framework you
+already build in.
 
-- **Action derivation** — pass a constant `Action`, or a callable
-  `(name, kwargs) -> Action` that derives blast radius / environment / kind from the
-  call's arguments.
-- **Policy** — `action_gate_policy()` gates on labels + blast radius (use this for
-  ordinary tools); or bring a full `ControlPolicy` and pass a grounded `finding`
-  (`Evidence`) / `verdict` (`VerificationResult`) for the complete trust chain.
-- **Soft vs raise** — `mode="soft"` (default) returns an LLM-readable
-  *held-for-approval* result the agent loop can react to; `mode="raise"` re-raises
-  `AdmissionError` to stop a deterministic pipeline. The audit record is written
-  **before** either, so a held action can never become an un-audited side effect.
-- **Out-of-band approval** — optionally pass an `ApprovalBridge` (the `tulip-gateway`
-  broker satisfies it) to submit holds for a human to approve on a side channel.
+---
 
 ## Install
 
@@ -65,28 +46,217 @@ pip install "tulip-frameworks[adk]"              # Google ADK
 pip install "tulip-frameworks[all]"              # everything
 ```
 
-`import tulip_frameworks` pulls in **no** framework package; each bridge imports its
-framework lazily and tells you which extra to install if it's missing.
+`import tulip_frameworks` pulls in **no** framework package. Each bridge imports its
+framework lazily and, if it's missing, tells you exactly which extra to install.
+
+---
+
+## Quickstart — LangChain
+
+```python
+from langchain_core.tools import tool
+from tulip.control import Action, AuditTrail
+from tulip_frameworks.langchain import gate_langchain_tool
+from tulip_frameworks.policy_presets import action_gate_policy
+
+@tool
+def refund(order_id: str, amount_usd: float) -> str:
+    "Issue a customer refund."
+    return payments.refund(order_id, amount_usd)
+
+trail = AuditTrail()
+
+safe_refund = gate_langchain_tool(
+    refund,
+    # Describe the action's risk from the call's arguments.
+    action=lambda name, a: Action(
+        name=name, asset=a["order_id"],
+        blast_radius=1, kind="payment", environment="production",
+    ),
+    policy=action_gate_policy(),   # production actions → held for a human
+    trail=trail,
+)
+
+# Drop it into the agent exactly where `refund` went — same name, schema, description.
+# agent = create_react_agent(model, tools=[safe_refund])
+```
+
+`safe_refund` is a real LangChain `StructuredTool`. Give it to your agent in place
+of `refund`. Now:
+
+- A refund in a non-production environment **runs** and is recorded.
+- A **production** refund is **held for a human** — the function never executes;
+  the agent gets back a structured "held for approval" result it can act on.
+- Every decision lands on `trail`, which you can `trail.verify()` (tamper-evidence)
+  and `trail.export_jsonl()` (ship to a SIEM or warehouse).
+
+A prompt injection that talks the model into a thousand production refunds produces
+a thousand *held* actions and zero executed ones.
+
+---
+
+## The mental model
+
+Every bridge is a thin wrapper over one primitive — `gate_callable` — which is the
+only thing that actually calls the core SDK's `admit()`. Three inputs decide what
+happens:
+
+| Input | What it is | Who supplies it |
+|---|---|---|
+| **Action** | What the agent is about to do — its `asset`, `blast_radius`, `environment`, `kind`, `tags`. | You, as a constant `Action` or a `(name, kwargs) -> Action` callable that reads the call's arguments. |
+| **Policy** | The rule. `action_gate_policy()` gates on labels + blast radius; or bring a full `ControlPolicy`. | You. |
+| **Trail** | Where decisions are recorded, hash-chained so tampering is detectable. | Optional `AuditTrail`. |
+
+The gate's output is one of three outcomes — **allow**, **require_human**, or
+**deny** — and the side effect runs only on *allow*. The audit record is written
+**before** a hold or denial surfaces, so a held action can never slip through as an
+un-recorded side effect.
+
+Deriving the `Action` from the arguments is the recommended form, because risk
+usually depends on them — a refund of $5 in staging is not the same action as a
+refund of $50,000 in production.
+
+---
+
+## Every framework, one line
+
+The shape is identical across frameworks: pass the tool you already have, an
+`action`, and a `policy`; get back a gated tool in that framework's native type.
+
+```python
+from tulip_frameworks.langchain     import gate_langchain_tool   # -> StructuredTool
+from tulip_frameworks.langgraph      import gate_langchain_tool, gate_node
+from tulip_frameworks.openai_agents  import gate_openai_tool      # -> FunctionTool
+from tulip_frameworks.crewai         import gate_crewai_tool      # -> BaseTool
+from tulip_frameworks.llamaindex     import gate_llamaindex_tool  # -> FunctionTool
+from tulip_frameworks.adk            import gate_adk_tool         # -> FunctionTool
+```
+
+- **LangChain** — `gate_langchain_tool(tool, …)` returns a `StructuredTool` with the
+  same name, description, and args schema. Drop-in.
+- **LangGraph** — `ToolNode` consumes a gated LangChain tool unchanged, so
+  `gate_langchain_tool` is re-exported here. For a raw graph **node** that performs a
+  side effect directly, use `gate_node(node_fn, name=…, action=…, policy=…)`; its
+  `action` reads the graph `state`.
+- **OpenAI Agents SDK** — `gate_openai_tool(function_tool, …)` returns a
+  `FunctionTool` that drops into `Agent(tools=[…])`.
+- **CrewAI** — `gate_crewai_tool(tool, …)` returns a `BaseTool`. CrewAI runs tools
+  synchronously; the bridge drives the async gate for you.
+- **LlamaIndex** — `gate_llamaindex_tool(tool, …)` returns a `FunctionTool`.
+- **Google ADK** — `gate_adk_tool(tool_or_fn, …)` returns a `FunctionTool` and
+  preserves the original signature, so ADK builds the right function declaration.
+
+---
+
+## Held or raised — your choice
+
+When an action doesn't admit, you pick how it surfaces with `mode`:
+
+- **`mode="soft"`** (default) — the gated call returns a structured *held-for-approval*
+  result the agent loop can read and react to (explain to the user, try a safer path,
+  poll for the human decision). The run stays alive. For LLM-facing bridges the result
+  is JSON, because a tool result has to be a string the model can see.
+
+  ```python
+  {"status": "held_for_approval", "outcome": "require_human",
+   "action": "refund", "asset": "ord-9", "reason": "production action needs a human"}
+  ```
+
+- **`mode="raise"`** — the gate re-raises `AdmissionError` to stop a deterministic
+  pipeline cold.
+
+Either way, the decision is on the trail first.
+
+---
+
+## Out-of-band approval
+
+A held action can be routed to a human on a side channel the agent can't reach.
+Pass an `ApprovalBridge` and the held result carries an `approval_id` the agent can
+poll while a person approves or denies elsewhere:
+
+```python
+safe_refund = gate_langchain_tool(refund, action=…, policy=…, trail=trail,
+                                  approval=my_bridge)
+# held result now includes: "approval_id": "appr-123",
+#                           "next": "call approval_status(approval_id) once a human decides"
+```
+
+`ApprovalBridge` is a small structural `Protocol` (`submit` + `state`) with **no**
+import-time dependency on any broker. The [`tulip-gateway`](https://tulipagents.ai)
+approval broker satisfies it; `gateway_bridge(broker)` adapts one when you have it.
+
+---
+
+## Test your gate offline — no LLM, no network
+
+`tulip_frameworks.testing` lets you assert a tool admits or holds deterministically,
+without running a model:
+
+```python
+from tulip_frameworks import gate_callable, action_gate_policy
+from tulip_frameworks.testing import Spy, assert_allowed, assert_held
+from tulip.control import Action
+
+async def test_production_refund_is_held():
+    spy = Spy()                      # stands in for the real side effect
+    gated = gate_callable(
+        spy, name="refund",
+        action=Action(name="refund", environment="production", kind="payment"),
+        policy=action_gate_policy(),
+    )
+    result = await gated(order_id="ord-9")
+    assert_held(result, spy)         # the side effect never ran; result is "held"
+```
+
+This is the same pattern the package's own unit tests use, so the behaviour you
+assert in CI is the behaviour your agent gets in production.
+
+---
 
 ## Three ways Tulip meets the ecosystem (don't conflate them)
 
-This package is for the **first** one — but it helps to see all three, because the same
-five "integrations" people name are actually three different relationships:
+This package is for the **first** one. It helps to see all three, because the same
+names people call "integrations" are actually three different relationships:
 
-- **Gate** — agent *frameworks* whose tools take actions: **LangChain, LangGraph, CrewAI,
-  the OpenAI Agents SDK, LlamaIndex, Google ADK.** This package's `gate_*_tool`.
-- **Compose** — *model-call* gateways (**LiteLLM**, Portkey): they route the model call;
-  Tulip gates the action. They stack, they don't compete. See
+- **Gate** — agent *frameworks* whose tools take actions (LangChain, LangGraph,
+  CrewAI, the OpenAI Agents SDK, LlamaIndex, Google ADK). This package's `gate_*_tool`.
+- **Compose** — *model-call* gateways (LiteLLM, Portkey): they route the model call;
+  Tulip gates the action. They stack, they don't compete — see
   [`examples/litellm_two_layer.py`](examples/litellm_two_layer.py).
-- **Assure** — *another agent* you don't control (a chatbot, an OpenClaw-style runtime, an
-  endpoint): red-team it as a `Target` with the core SDK's `red_team()`.
+- **Assure** — *another agent* you don't control (a chatbot, an endpoint, an
+  OpenClaw-style runtime): red-team it as a `Target` with the core SDK's `red_team()`.
+
+A model-call gateway is not something you *gate* — it governs which model, whose
+key, within what budget; Tulip governs whether the action runs. Different layers;
+they stack cleanly.
+
+---
+
+## Examples
+
+Runnable, per-framework, under [`examples/`](examples/):
+
+| File | Shows |
+|---|---|
+| [`langchain_refund_gate.py`](examples/langchain_refund_gate.py) | Gate a refund tool; production held for a human |
+| [`langgraph_soc_containment.py`](examples/langgraph_soc_containment.py) | Gate a graph node that performs a side effect |
+| [`crewai_account_gate.py`](examples/crewai_account_gate.py) | Gate a CrewAI tool (sync execution model) |
+| [`adk_account_gate.py`](examples/adk_account_gate.py) | Gate a Google ADK FunctionTool |
+| [`litellm_two_layer.py`](examples/litellm_two_layer.py) | Compose: LiteLLM routes the model, Tulip gates the action |
+
+---
 
 ## Status
 
 v0.1 ships gate bridges for **LangChain, LangGraph, the OpenAI Agents SDK, CrewAI,
-LlamaIndex, and Google ADK**, plus the framework-agnostic core. The LangChain/LangGraph
-and OpenAI Agents bridges are the most exercised; CrewAI, LlamaIndex, and ADK follow the
-identical pattern.
+LlamaIndex, and Google ADK**, plus the framework-agnostic core, an out-of-band
+approval protocol, and offline testing helpers. The LangChain/LangGraph and OpenAI
+Agents bridges are the most exercised, including end-to-end tests against a real LLM;
+CrewAI, LlamaIndex, and ADK follow the identical pattern.
 
-One-way dependency on `tulip-agents` (the langchain-core / langchain-community split).
-Apache-2.0. See [the docs](https://tulipagents.ai/integrations/frameworks/).
+One-way dependency on `tulip-agents` (the same direction as the
+langchain-core / langchain-community split). Apache-2.0.
+
+→ Full docs: **<https://tulipagents.ai/integrations/frameworks/>** ·
+Core SDK: **<https://github.com/tuliplabs-ai/sdk-python>**
