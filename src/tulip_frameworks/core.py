@@ -17,17 +17,20 @@ import inspect
 from collections.abc import Awaitable, Callable, Mapping
 from typing import Any, Literal
 
-from tulip.security import (
+from tulip.control import (
     Action,
     AdmissionError,
     AuditTrail,
-    Finding,
-    SecurityPolicy,
+    ControlPolicy,
     admit,
+)
+from tulip.security import (
+    Evidence,
     as_json,
 )
 from tulip.security import (
-    Verdict as Verdict,  # re-exported for callers that pass a verification result
+    VerificationResult as VerificationResult,
+    # re-exported for callers that pass a verification result,
 )
 
 from tulip_frameworks.actions import ActionSpec, resolve_action
@@ -88,11 +91,11 @@ def gate_callable(
     *,
     name: str,
     action: ActionSpec,
-    policy: SecurityPolicy,
+    policy: ControlPolicy,
     trail: AuditTrail | None = None,
     mode: Mode = "soft",
-    finding: Finding | None = None,
-    verdict: Verdict | None = None,
+    finding: Evidence | None = None,
+    verdict: VerificationResult | None = None,
     principal: str = "agent",
     approval: ApprovalBridge | None = None,
     serialize: bool = False,
@@ -106,7 +109,7 @@ def gate_callable(
         action: An :class:`~tulip.security.Action`, or a callable
             ``(name, kwargs) -> Action`` that derives one per call (the recommended
             form — risk usually varies with the arguments).
-        policy: The governing :class:`~tulip.security.SecurityPolicy`. For arbitrary
+        policy: The governing :class:`~tulip.security.ControlPolicy`. For arbitrary
             tools with no verification, prefer
             :func:`tulip_frameworks.policy_presets.action_gate_policy`.
         trail: An :class:`~tulip.security.AuditTrail` to record every decision on.
@@ -167,7 +170,7 @@ __all__ = [
     "DENIED",
     "HELD",
     "Mode",
-    "Verdict",
+    "VerificationResult",
     "gate_callable",
     "held_result",
     "is_held",

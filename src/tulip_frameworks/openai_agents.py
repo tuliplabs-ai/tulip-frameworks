@@ -6,7 +6,7 @@
     from agents import Agent, function_tool
     from tulip_frameworks.openai_agents import gate_openai_tool
     from tulip_frameworks.policy_presets import action_gate_policy
-    from tulip.security import Action, AuditTrail
+    from tulip.control import Action, AuditTrail
 
     @function_tool
     def disable_user(email: str) -> str:
@@ -28,11 +28,12 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Any
 
-from tulip.security import AuditTrail, Finding, SecurityPolicy
+from tulip.control import AuditTrail, ControlPolicy
+from tulip.security import Evidence
 
 from tulip_frameworks.actions import ActionSpec
 from tulip_frameworks.approval import ApprovalBridge
-from tulip_frameworks.core import Mode, Verdict, gate_callable
+from tulip_frameworks.core import Mode, VerificationResult, gate_callable
 
 if TYPE_CHECKING:
     from agents import FunctionTool
@@ -52,11 +53,11 @@ def gate_openai_tool(
     tool: Any,
     *,
     action: ActionSpec,
-    policy: SecurityPolicy,
+    policy: ControlPolicy,
     trail: AuditTrail | None = None,
     mode: Mode = "soft",
-    finding: Finding | None = None,
-    verdict: Verdict | None = None,
+    finding: Evidence | None = None,
+    verdict: VerificationResult | None = None,
     principal: str = "agent",
     approval: ApprovalBridge | None = None,
 ) -> FunctionTool:

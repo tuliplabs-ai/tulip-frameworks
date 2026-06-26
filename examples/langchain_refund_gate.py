@@ -13,7 +13,7 @@ import asyncio
 import json
 
 from langchain_core.tools import tool
-from tulip.security import Action, AuditTrail
+from tulip.control import Action, AuditTrail
 
 from tulip_frameworks.langchain import gate_langchain_tool
 from tulip_frameworks.policy_presets import action_gate_policy
@@ -33,8 +33,11 @@ async def main() -> None:
     safe_refund = gate_langchain_tool(
         refund,
         action=lambda name, a: Action(
-            name=name, asset=a["order_id"], blast_radius=1,
-            kind="payment", environment="production",
+            name=name,
+            asset=a["order_id"],
+            blast_radius=1,
+            kind="payment",
+            environment="production",
         ),
         policy=policy,
         trail=trail,
@@ -43,7 +46,7 @@ async def main() -> None:
     # The agent (any LangChain/LangGraph runtime) would call this. We call it
     # directly to show the gate decision without spending an LLM token.
     result = await safe_refund.ainvoke({"order_id": "ord-4821", "amount_usd": 250.0})
-    print("tool result:", json.loads(result))   # -> status: held_for_approval
+    print("tool result:", json.loads(result))  # -> status: held_for_approval
 
     print("\naudit chain intact:", trail.verify())
     print(trail.export_jsonl())

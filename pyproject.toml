@@ -10,12 +10,44 @@ readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 requires-python = ">=3.11"
+authors = [
+    { name = "Tulip Labs" },
+]
+keywords = [
+    "agents",
+    "ai",
+    "langchain",
+    "langgraph",
+    "crewai",
+    "llamaindex",
+    "openai-agents",
+    "adk",
+    "llm",
+    "guardrails",
+    "audit",
+    "human-in-the-loop",
+    "security",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Security",
+    "Typing :: Typed",
+]
 # One-way dependency: framework bridges depend on the core SDK, never the reverse
 # (the langchain-community -> langchain-core relationship). The framework trees
 # themselves are heavy and churny, so they live behind per-framework extras and
 # are imported lazily — `import tulip_frameworks` pulls in none of them.
 dependencies = [
-    "tulip-agents>=1.1",
+    "tulip-agents>=2.0",
 ]
 
 [project.optional-dependencies]

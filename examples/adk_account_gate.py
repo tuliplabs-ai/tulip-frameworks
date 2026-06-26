@@ -14,7 +14,7 @@ import asyncio
 import json
 
 from google.adk.tools import FunctionTool
-from tulip.security import Action, AuditTrail
+from tulip.control import Action, AuditTrail
 
 from tulip_frameworks.adk import gate_adk_tool
 from tulip_frameworks.policy_presets import action_gate_policy

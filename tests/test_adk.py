@@ -12,7 +12,10 @@ import pytest
 pytest.importorskip("google.adk")
 
 from google.adk.tools import FunctionTool  # noqa: E402
-from tulip.security import Action, AuditTrail  # noqa: E402
+from tulip.control import (
+    Action,
+    AuditTrail,  # noqa: E402
+)
 
 from tulip_frameworks.adk import gate_adk_tool  # noqa: E402
 from tulip_frameworks.policy_presets import action_gate_policy  # noqa: E402

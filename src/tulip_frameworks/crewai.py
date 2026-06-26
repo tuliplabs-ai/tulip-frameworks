@@ -6,7 +6,7 @@
     from crewai.tools import BaseTool
     from tulip_frameworks.crewai import gate_crewai_tool
     from tulip_frameworks.policy_presets import action_gate_policy
-    from tulip.security import Action, AuditTrail
+    from tulip.control import Action, AuditTrail
 
     trail = AuditTrail()
     safe_tool = gate_crewai_tool(
@@ -24,21 +24,20 @@ from __future__ import annotations
 
 from typing import Any
 
-from tulip.security import AuditTrail, Finding, SecurityPolicy
+from tulip.control import AuditTrail, ControlPolicy
+from tulip.security import Evidence
 
 from tulip_frameworks._sync import run_sync
 from tulip_frameworks.actions import ActionSpec
 from tulip_frameworks.approval import ApprovalBridge
-from tulip_frameworks.core import Mode, Verdict, gate_callable
+from tulip_frameworks.core import Mode, VerificationResult, gate_callable
 
 
 def _require_crewai() -> Any:
     try:
         from crewai.tools import BaseTool
     except ImportError as exc:  # pragma: no cover - exercised only without the extra
-        raise ImportError(
-            "CrewAI support needs: pip install tulip-frameworks[crewai]"
-        ) from exc
+        raise ImportError("CrewAI support needs: pip install tulip-frameworks[crewai]") from exc
     return BaseTool
 
 
@@ -46,11 +45,11 @@ def gate_crewai_tool(
     tool: Any,
     *,
     action: ActionSpec,
-    policy: SecurityPolicy,
+    policy: ControlPolicy,
     trail: AuditTrail | None = None,
     mode: Mode = "soft",
-    finding: Finding | None = None,
-    verdict: Verdict | None = None,
+    finding: Evidence | None = None,
+    verdict: VerificationResult | None = None,
     principal: str = "agent",
     approval: ApprovalBridge | None = None,
 ) -> Any:

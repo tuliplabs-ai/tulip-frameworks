@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 
 from crewai.tools import BaseTool
-from tulip.security import Action, AuditTrail
+from tulip.control import Action, AuditTrail
 
 from tulip_frameworks.crewai import gate_crewai_tool
 from tulip_frameworks.policy_presets import action_gate_policy

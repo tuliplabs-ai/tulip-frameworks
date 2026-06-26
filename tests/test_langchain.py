@@ -15,7 +15,10 @@ import pytest
 pytest.importorskip("langchain_core")
 
 from langchain_core.tools import tool  # noqa: E402
-from tulip.security import Action, AuditTrail  # noqa: E402
+from tulip.control import (
+    Action,
+    AuditTrail,  # noqa: E402
+)
 
 from tulip_frameworks.langchain import gate_langchain_tool  # noqa: E402
 from tulip_frameworks.policy_presets import action_gate_policy  # noqa: E402
