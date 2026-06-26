@@ -12,10 +12,28 @@ import pytest
 pytest.importorskip("agents")
 
 from agents import function_tool  # noqa: E402
-from tulip.security import Action, AuditTrail  # noqa: E402
+from agents.tool_context import ToolContext  # noqa: E402
+from agents.usage import Usage  # noqa: E402
+from tulip.control import (
+    Action,
+    AuditTrail,  # noqa: E402
+)
 
 from tulip_frameworks.openai_agents import gate_openai_tool  # noqa: E402
 from tulip_frameworks.policy_presets import action_gate_policy  # noqa: E402
+
+
+def _ctx(tool_name: str = "disable_user") -> ToolContext:
+    """A minimal real ``ToolContext`` — openai-agents 0.17+ reads ``ctx.tool_name``."""
+    return ToolContext(
+        context=None,
+        usage=Usage(),
+        tool_name=tool_name,
+        tool_call_id="call_test",
+        tool_arguments="{}",
+        turn_input=[],
+        _approvals={},
+    )
 
 
 def _disable_tool(ran: list[str]):
@@ -37,7 +55,7 @@ async def test_allow_runs() -> None:
         policy=action_gate_policy(),
         trail=trail,
     )
-    out = await gated.on_invoke_tool(None, json.dumps({"email": "u@corp"}))
+    out = await gated.on_invoke_tool(_ctx(), json.dumps({"email": "u@corp"}))
     assert "disabled u@corp" in out
     assert ran == ["u@corp"]
     assert trail.verify() is True
@@ -52,7 +70,7 @@ async def test_production_held() -> None:
         ),
         policy=action_gate_policy(),
     )
-    out = await gated.on_invoke_tool(None, json.dumps({"email": "m@corp"}))
+    out = await gated.on_invoke_tool(_ctx(), json.dumps({"email": "m@corp"}))
     payload = json.loads(out)
     assert payload["status"] == "held_for_approval"
     assert ran == []

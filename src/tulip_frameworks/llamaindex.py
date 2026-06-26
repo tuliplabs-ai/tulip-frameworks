@@ -6,7 +6,7 @@
     from llama_index.core.tools import FunctionTool
     from tulip_frameworks.llamaindex import gate_llamaindex_tool
     from tulip_frameworks.policy_presets import action_gate_policy
-    from tulip.security import Action, AuditTrail
+    from tulip.control import Action, AuditTrail
 
     trail = AuditTrail()
     safe_tool = gate_llamaindex_tool(
@@ -23,11 +23,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from tulip.security import AuditTrail, Finding, SecurityPolicy
+from tulip.control import AuditTrail, ControlPolicy
+from tulip.security import Evidence
 
 from tulip_frameworks.actions import ActionSpec
 from tulip_frameworks.approval import ApprovalBridge
-from tulip_frameworks.core import Mode, Verdict, gate_callable
+from tulip_frameworks.core import Mode, VerificationResult, gate_callable
 
 
 def _require_llamaindex() -> Any:
@@ -44,11 +45,11 @@ def gate_llamaindex_tool(
     tool: Any,
     *,
     action: ActionSpec,
-    policy: SecurityPolicy,
+    policy: ControlPolicy,
     trail: AuditTrail | None = None,
     mode: Mode = "soft",
-    finding: Finding | None = None,
-    verdict: Verdict | None = None,
+    finding: Evidence | None = None,
+    verdict: VerificationResult | None = None,
     principal: str = "agent",
     approval: ApprovalBridge | None = None,
 ) -> Any:

@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 
 import pytest
-from tulip.security import Action, AdmissionError, AuditTrail
+from tulip.control import Action, AdmissionError, AuditTrail
 
 from tulip_frameworks import action_gate_policy, gate_callable
 from tulip_frameworks.testing import Spy, assert_allowed, assert_held

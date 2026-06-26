@@ -17,7 +17,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from typing import Any
 
-from tulip.security import Action
+from tulip.control import Action
 
 #: An :class:`Action`, or a callable that derives one from ``(name, kwargs)``.
 ActionSpec = Action | Callable[[str, Mapping[str, Any]], Action]
@@ -60,7 +60,7 @@ def default_action(
     """A conservative :class:`Action` for ``name`` when none was supplied.
 
     Fail-safe by construction: ``environment="unknown"`` plus the stock
-    :class:`~tulip.security.SecurityPolicy` (which requires a verification score)
+    :class:`~tulip.security.ControlPolicy` (which requires a verification score)
     lands an un-verified call on ``require_human`` rather than auto-allowing it.
     """
     return Action(

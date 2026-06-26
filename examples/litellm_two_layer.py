@@ -21,7 +21,7 @@ from __future__ import annotations
 import asyncio
 import os
 
-from tulip.security import Action, AdmissionError, AuditTrail
+from tulip.control import Action, AdmissionError, AuditTrail
 
 from tulip_frameworks.policy_presets import action_gate_policy
 
@@ -52,8 +52,11 @@ async def main() -> None:
     trail = AuditTrail()
     policy = action_gate_policy()
     refund = Action(
-        name="refund", asset="cust:4821", blast_radius=1,
-        kind="payment", environment="production",
+        name="refund",
+        asset="cust:4821",
+        blast_radius=1,
+        kind="payment",
+        environment="production",
     )
 
     async def do_refund() -> str:
@@ -61,7 +64,7 @@ async def main() -> None:
 
     print("action layer : admit() gating the refund...")
     try:
-        from tulip.security import admit
+        from tulip.control import admit
 
         await admit(refund, do_refund, policy=policy, trail=trail)
         print("               -> executed")
