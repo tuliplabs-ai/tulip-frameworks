@@ -3,12 +3,13 @@
 **Put Tulip's control gate around the actions your existing agent already takes —
 without rebuilding it on Tulip.**
 
-[Tulip](https://tulipagents.ai) is an agentic framework with a control layer built
-into the core: every action an agent takes runs only after it clears a policy you
-write, pauses for a human when the stakes are high, and is recorded on a
-tamper-evident audit trail. `tulip-frameworks` lets you keep the agent you already
-have — in **LangChain, LangGraph, CrewAI, the OpenAI Agents SDK, LlamaIndex, or
-Google ADK** — and add just that control layer to the tools it calls.
+[Tulip](https://tulipagents.ai) is **the safest way to build agentic AI** — a
+full-stack, open-source agent SDK where control is native: every action an agent
+takes runs only after it clears a policy you write, pauses for a human when the
+stakes are high, and lands on a tamper-evident audit trail. `tulip-frameworks` lets
+you keep the agent you already have — in **LangChain, LangGraph, CrewAI, the OpenAI
+Agents SDK, LlamaIndex, or Google ADK** — and bring **just that control layer** to
+the tools it calls, without rebuilding on the full Tulip SDK.
 
 You wrap a tool once. From then on, when the agent decides to refund an order,
 disable an account, or run a deploy, the gate decides whether that action is
