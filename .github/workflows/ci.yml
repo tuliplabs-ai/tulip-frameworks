@@ -64,9 +64,13 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[langchain,langgraph,openai-agents,llama-index,adk]"
-          pip install pytest pytest-asyncio
+          pip install pytest pytest-asyncio pytest-cov
       # The live-LLM integration tests under tests/integration skip automatically
       # without an API key and without the langchain-anthropic extra, so CI
       # exercises the full offline gate without needing any secrets.
-      - name: Test
-        run: pytest tests -q
+      #
+      # ≥95% coverage is an org-wide hard gate. crewai is intentionally NOT installed
+      # (heaviest/churniest tree); crewai.py is still covered by the fake-module unit
+      # test in tests/test_crewai_unit.py, so the gate holds without it.
+      - name: Test (coverage-gated ≥95%)
+        run: pytest --cov=src/tulip_frameworks --cov-report=term-missing --cov-fail-under=95 tests -q
