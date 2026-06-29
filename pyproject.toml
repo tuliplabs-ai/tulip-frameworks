@@ -68,7 +68,7 @@ all = [
     "llama-index-core>=0.11",
     "google-adk>=0.2",
 ]
-dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "ruff>=0.6", "mypy>=1.11"]
+dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "pytest-cov>=6.0", "ruff>=0.6", "mypy>=1.11"]
 
 [project.urls]
 Homepage = "https://tulipagents.ai/"
@@ -79,15 +79,29 @@ Documentation = "https://tulipagents.ai/integrations/frameworks/"
 packages = ["src/tulip_frameworks"]
 
 [tool.hatch.envs.default]
-dependencies = ["pytest>=8.0", "pytest-asyncio>=0.23", "ruff>=0.6", "mypy>=1.11"]
+# The dev tooling PLUS every framework extra except crewai, so `test-cov` measures the
+# per-framework bridges against their REAL upstream tool classes. (crewai's tree is the
+# heaviest and churniest — CI omits it too; crewai.py is covered by a fake-module unit
+# test in tests/test_crewai_unit.py.) mypy stays clean whether or not these are present:
+# the framework modules are `follow_imports = "skip"` (see [tool.mypy] overrides).
+features = ["langchain", "langgraph", "openai-agents", "llama-index", "adk", "dev"]
+# tulip-agents is a normal PyPI dependency, but for local co-development we override it
+# with an editable install of the sibling checkout.
+post-install-commands = ["python -m pip install -e {root}/../tulip-agents"]
 
 [tool.hatch.envs.default.scripts]
 # Mirror the core repo's hatch ergonomics.
 sdk = "python -m pip install -e {env:TULIP_SDK_DIR:../tulip-agents}"
 test = "pytest {args:tests}"
+# test-cov enforces ≥95% coverage (fail_under in [tool.coverage.report]).
+test-cov = "pytest --cov=src/tulip_frameworks --cov-report=term-missing {args:tests}"
 lint = "ruff check src tests examples"
+lint-fix = "ruff check --fix src tests examples"
+format = "ruff format src tests examples"
+format-check = "ruff format --check src tests examples"
 typecheck = "mypy src/tulip_frameworks"
-check = ["ruff check src tests examples", "mypy src/tulip_frameworks", "pytest tests"]
+# The CI gate — a clean `hatch run check` is what the pipeline enforces.
+check = ["format-check", "lint", "typecheck", "test-cov"]
 
 [tool.pytest.ini_options]
 minversion = "8.0"
@@ -108,8 +122,11 @@ python_version = "3.11"
 strict = true
 
 # The framework bridges import their framework lazily and are typed against it, but
-# the framework packages are optional extras (not installed in a base/CI env). Don't
-# fail strict typing on a missing optional dependency.
+# the framework packages are optional extras. `follow_imports = "skip"` makes mypy
+# treat them as `Any` whether or not they're installed, so the strict typecheck is
+# identical in a base env (CI's typecheck job) and in the test env where the extras
+# are present for coverage — the bridge contract is what's tested, not the upstream
+# packages' stubs (mirrors the tulip-registry psycopg/jwt pattern).
 [[tool.mypy.overrides]]
 module = [
     "langchain_core.*",
@@ -119,4 +136,24 @@ module = [
     "llama_index.*",
     "google.adk.*",
 ]
+follow_imports = "skip"
 ignore_missing_imports = true
+
+# =============================================================================
+# Coverage — the ≥95% org-wide gate (enforced by test-cov / CI's --cov-fail-under)
+# =============================================================================
+[tool.coverage.run]
+source = ["src/tulip_frameworks"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "class .*\\bProtocol\\):",
+    "@overload",
+    "if __name__ == .__main__.:",
+]
+fail_under = 95
+show_missing = true

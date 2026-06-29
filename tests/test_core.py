@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 
 import pytest
 from tulip.control import Action, AdmissionError, AuditTrail
@@ -94,6 +95,51 @@ async def test_serialize_returns_json_string() -> None:
     assert isinstance(result, str)
     payload = json.loads(result)
     assert payload["status"] == "held_for_approval"
+
+
+async def test_sync_fn_returning_awaitable_is_awaited() -> None:
+    """A plain (non-`async def`) callable that *returns* a coroutine is awaited.
+
+    ``inspect.iscoroutinefunction`` is False for such a callable, so ``_ensure_async``
+    can't short-circuit; it must detect the awaitable result and await it rather than
+    hand the agent an un-awaited coroutine.
+    """
+    ran: list[str] = []
+
+    def schedule(**kwargs: Any) -> Any:
+        async def _inner() -> str:
+            ran.append("inner")
+            return "deferred-ok"
+
+        return _inner()  # a coroutine returned from a *sync* function
+
+    gated = gate_callable(
+        schedule,
+        name="schedule",
+        action=Action(name="schedule", asset="x", environment="dev"),
+        policy=action_gate_policy(),
+    )
+    out = await gated(asset="x")
+    assert out == "deferred-ok"
+    assert ran == ["inner"]  # the returned coroutine was actually awaited
+
+
+def test_uninspectable_signature_is_tolerated() -> None:
+    """Wrapping a callable whose signature can't be introspected must not raise.
+
+    ``gate_callable`` best-effort-copies the wrapped callable's signature (so ADK /
+    LlamaIndex see the real params); a C builtin like ``min`` makes
+    ``inspect.signature`` raise ``ValueError``, which the wrapper must swallow.
+    """
+    gated = gate_callable(
+        min,
+        name="probe",
+        action=Action(name="probe", environment="dev"),
+        policy=action_gate_policy(),
+    )
+    assert gated.__name__ == "probe"
+    # signature() raised, so no __signature__ was copied onto the wrapper.
+    assert getattr(gated, "__signature__", None) is None
 
 
 async def test_approval_bridge_embeds_id() -> None:
