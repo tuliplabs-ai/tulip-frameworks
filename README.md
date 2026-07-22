@@ -3,8 +3,8 @@
 **Put Tulip's control gate around the actions your existing agent already takes —
 without rebuilding it on Tulip.**
 
-[Tulip](https://tulipagents.ai) is **the safest way to build agentic AI** — a
-full-stack, open-source agent SDK where control is native: every action an agent
+[Tulip](https://tulipagents.ai) is **the safest way to build agentic AI** — an
+open-source **agentic harness** where control is native: every action an agent
 takes runs only after it clears a policy you write, pauses for a human when the
 stakes are high, and lands on a tamper-evident audit trail. `tulip-frameworks` lets
 you keep the agent you already have — in **LangChain, LangGraph, CrewAI, the OpenAI
@@ -19,16 +19,12 @@ allowed, held for a human, or denied — and writes the decision down either way
 
 ## Why this exists
 
-An agent that can only read is easy to trust. An agent that can *act* — move money,
-change accounts, touch production — is not, because the thing deciding to act is a
-language model, and a language model can be talked into things. A prompt injection,
-a confused chain of thought, or a bad retrieval can all end with the model calling
-`refund(order, 1_000_000)`.
-
-The usual answer is "tell the model to be careful" in a system prompt. That is a
-guideline the model can ignore. Tulip's answer is a check in **real code, outside
-the model**, that runs between the decision and the side effect. The model can be
-fooled; it still can't get the action *executed* if your policy says no.
+An agent that can only read is easy to trust. An agent that can *act* is not: the
+thing deciding is a language model, and a prompt injection, a confused chain of
+thought, or a bad retrieval can end with `refund(order, 1_000_000)`. A system
+prompt is a guideline the model can ignore. Tulip's answer is a check in **real
+code, outside the model**, between the decision and the side effect — the model
+can be fooled; the action still doesn't execute unless your policy allows.
 
 `tulip-frameworks` is how you get that check without leaving the framework you
 already build in.
@@ -227,10 +223,6 @@ names people call "integrations" are actually three different relationships:
   [`examples/litellm_two_layer.py`](examples/litellm_two_layer.py).
 - **Assure** — *another agent* you don't control (a chatbot, an endpoint, an
   OpenClaw-style runtime): red-team it as a `Target` with the core SDK's `red_team()`.
-
-A model-call gateway is not something you *gate* — it governs which model, whose
-key, within what budget; Tulip governs whether the action runs. Different layers;
-they stack cleanly.
 
 ---
 
