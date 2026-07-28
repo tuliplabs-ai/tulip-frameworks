@@ -68,7 +68,7 @@ all = [
     "llama-index-core>=0.11",
     "google-adk>=0.2",
 ]
-dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "pytest-cov>=6.0", "ruff>=0.6", "mypy>=1.11"]
+dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "pytest-cov>=6.0", "ruff>=0.15,<0.16", "mypy>=1.11"]
 
 [project.urls]
 Homepage = "https://tulipagents.ai/"
