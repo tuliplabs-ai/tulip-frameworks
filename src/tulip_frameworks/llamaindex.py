@@ -23,12 +23,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from tulip.control import AuditTrail, ControlPolicy
+from tulip.control import AuditTrail
 from tulip.security import Evidence
 
 from tulip_frameworks.actions import ActionSpec
 from tulip_frameworks.approval import ApprovalBridge
-from tulip_frameworks.core import Mode, VerificationResult, gate_callable
+from tulip_frameworks.core import GatePolicy, Mode, VerificationResult, gate_callable
 
 
 def _require_llamaindex() -> Any:
@@ -45,7 +45,7 @@ def gate_llamaindex_tool(
     tool: Any,
     *,
     action: ActionSpec,
-    policy: ControlPolicy,
+    policy: GatePolicy,
     trail: AuditTrail | None = None,
     mode: Mode = "soft",
     finding: Evidence | None = None,

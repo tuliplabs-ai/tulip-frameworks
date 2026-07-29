@@ -35,6 +35,12 @@ from tulip.security import (
 
 from tulip_frameworks.actions import ActionSpec, resolve_action
 from tulip_frameworks.approval import ApprovalBridge
+from tulip_frameworks.gateway import RemotePolicy
+
+#: Where the decision is taken: in process (:class:`ControlPolicy`) or on a gateway
+#: over HTTP (:class:`~tulip_frameworks.gateway.RemotePolicy`). Every bridge accepts
+#: either, so moving the gate across a process boundary is a one-argument change.
+GatePolicy = ControlPolicy | RemotePolicy
 
 #: How a held/denied action surfaces. ``"soft"`` returns an LLM-readable result the
 #: agent loop can react to; ``"raise"`` re-raises :class:`~tulip.security.AdmissionError`.
@@ -66,6 +72,7 @@ def held_result(
     kwargs: Mapping[str, Any],
     principal: str,
     approval: ApprovalBridge | None,
+    approval_id: str | None = None,
 ) -> dict[str, Any]:
     """Build the structured result returned in soft mode when an action doesn't admit.
 
@@ -80,8 +87,15 @@ def held_result(
         "asset": action.asset,
         "reason": decision.reason,
     }
-    if decision.outcome != "deny" and approval is not None:
+    if decision.outcome == "deny":
+        return out
+    # A remote gate has already opened the approval and told us its id; an in-process
+    # gate needs a bridge to open one. Either way the agent gets a pollable id.
+    if approval_id is not None:
+        out["approval_id"] = approval_id
+    elif approval is not None:
         out["approval_id"] = approval.submit(principal, action.name, dict(kwargs))
+    if "approval_id" in out:
         out["next"] = "call approval_status(approval_id) once a human decides"
     return out
 
@@ -91,7 +105,7 @@ def gate_callable(
     *,
     name: str,
     action: ActionSpec,
-    policy: ControlPolicy,
+    policy: GatePolicy,
     trail: AuditTrail | None = None,
     mode: Mode = "soft",
     finding: Evidence | None = None,
@@ -137,6 +151,9 @@ def gate_callable(
             return await perform_async(**kwargs)
 
         try:
+            if isinstance(policy, RemotePolicy):
+                # The decision crosses the wire; ``perform`` never leaves this process.
+                return await policy.admit(act, perform, trail=trail)
             return await admit(
                 act, perform, policy=policy, finding=finding, verdict=verdict, trail=trail
             )
@@ -144,7 +161,11 @@ def gate_callable(
             if mode == "raise":
                 raise
             result = held_result(
-                exc.decision, kwargs=kwargs, principal=principal, approval=approval
+                exc.decision,
+                kwargs=kwargs,
+                principal=principal,
+                approval=approval,
+                approval_id=getattr(exc, "approval_id", None),
             )
             return as_json(result) if serialize else result
 
@@ -169,6 +190,7 @@ def is_held(result: Any) -> bool:
 __all__ = [
     "DENIED",
     "HELD",
+    "GatePolicy",
     "Mode",
     "VerificationResult",
     "gate_callable",
