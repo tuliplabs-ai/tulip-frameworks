@@ -24,3 +24,21 @@ pytest tests/integration -q
 
 Override the models with `TULIP_TEST_ANTHROPIC_MODEL` / `TULIP_TEST_OPENAI_MODEL`
 (defaults: a small, cheap model on each provider).
+
+## `test_admit_rpc_live.py` — the gate over the wire, no key needed
+
+Unlike the two above, this one needs **no API key** — the model is scripted; what is
+real is the *gateway*. A LangGraph agent holds a tool whose `policy=` is a
+`RemotePolicy`, so the decision is taken by `POST /v1/admit` in another process. It
+asserts an allowed call runs, a held call does not, the hold carries the gateway's
+`approval_id`, a human on a different principal can approve it, the claim is
+single-use, and the agent's own principal is refused when it tries to approve itself.
+
+It is skipped unless a gateway answers `/health`:
+
+```bash
+TULIP_GATEWAY_URL=http://127.0.0.1:8420 TULIP_GATEWAY_TENANT=acme pytest tests/integration -q
+```
+
+It is idempotent and safe against a shared, persistent stack: each run uses fresh
+asset ids and only touches approvals it opened itself.

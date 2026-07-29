@@ -25,12 +25,14 @@ from tulip_frameworks.approval import ApprovalBridge, gateway_bridge
 from tulip_frameworks.core import (
     DENIED,
     HELD,
+    GatePolicy,
     Mode,
     VerificationResult,
     gate_callable,
     held_result,
     is_held,
 )
+from tulip_frameworks.gateway import RemotePolicy
 from tulip_frameworks.policy_presets import action_gate_policy
 
 __version__ = "0.1.0"
@@ -40,7 +42,9 @@ __all__ = [
     "HELD",
     "ActionSpec",
     "ApprovalBridge",
+    "GatePolicy",
     "Mode",
+    "RemotePolicy",
     "VerificationResult",
     "__version__",
     "action_gate_policy",

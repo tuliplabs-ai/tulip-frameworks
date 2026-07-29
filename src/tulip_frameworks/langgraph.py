@@ -16,11 +16,11 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable, Mapping
 from typing import Any
 
-from tulip.control import Action, AuditTrail, ControlPolicy
+from tulip.control import Action, AuditTrail
 from tulip.security import Evidence
 
 from tulip_frameworks.approval import ApprovalBridge
-from tulip_frameworks.core import Mode, VerificationResult, gate_callable
+from tulip_frameworks.core import GatePolicy, Mode, VerificationResult, gate_callable
 from tulip_frameworks.langchain import gate_langchain_tool
 
 #: An :class:`Action`, or a callable deriving one from the graph ``state``.
@@ -32,7 +32,7 @@ def gate_node(
     *,
     name: str,
     action: NodeActionSpec,
-    policy: ControlPolicy,
+    policy: GatePolicy,
     trail: AuditTrail | None = None,
     mode: Mode = "soft",
     finding: Evidence | None = None,

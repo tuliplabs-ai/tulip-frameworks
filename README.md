@@ -181,7 +181,43 @@ safe_refund = gate_langchain_tool(refund, action=…, policy=…, trail=trail,
 
 `ApprovalBridge` is a small structural `Protocol` (`submit` + `state`) with **no**
 import-time dependency on any broker. The [`tulip-gateway`](https://tulipagents.ai)
-approval broker satisfies it; `gateway_bridge(broker)` adapts one when you have it.
+approval broker satisfies it; `gateway_bridge(broker)` adapts one when you have it —
+that adapter wraps a broker **object in your process**. For a gate on the other side
+of the network, see below.
+
+---
+
+## The gate as a plain network call
+
+By default the decision is taken in your process. Swap `policy=` for a `RemotePolicy`
+and it moves to a gateway instead — the wrapper marshals the `Action`, `POST /v1/admit`
+weighs it against a **server-side** policy, and the side effect runs locally only on
+ALLOW. Nothing else about your agent changes:
+
+```python
+from tulip_frameworks.gateway import RemotePolicy
+
+policy = RemotePolicy("http://gateway:8420", policy_ref="default",
+                      principal="agent:support", tenant="acme")
+safe_refund = gate_langchain_tool(refund, action=…, policy=policy, trail=trail)
+```
+
+Every bridge accepts either kind (`GatePolicy = ControlPolicy | RemotePolicy`). The
+held result then carries the **gateway's** `approval_id`, and the lifecycle is driven
+over the same connection:
+
+```python
+await policy.approval_state(approval_id)   # pending / approved / denied / consumed
+await policy.consume(approval_id)          # single-use claim; False if already used
+```
+
+No policy logic ships from this side — `policy_ref` names a policy the gateway holds —
+and the transport is stdlib `urllib`, so this adds no dependency. Pass `transport=` to
+supply your own (custom auth, proxies, an HTTP client you already have).
+
+> The gateway does **not** authenticate `/v1/admit` today, and the "a principal may not
+> approve its own action" rule compares a caller-supplied `decided_by` string. Put the
+> gateway on a trusted network until that changes.
 
 ---
 
