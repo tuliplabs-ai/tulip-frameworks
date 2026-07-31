@@ -3,13 +3,13 @@
 **Put Tulip's control gate around the actions your existing agent already takes —
 without rebuilding it on Tulip.**
 
-[Tulip](https://tulipagents.ai) is **the safest way to build agentic AI** — an
-open-source **agentic harness** where control is native: every action an agent
-takes runs only after it clears a policy you write, pauses for a human when the
-stakes are high, and lands on a tamper-evident audit trail. `tulip-frameworks` lets
-you keep the agent you already have — in **LangChain, LangGraph, CrewAI, the OpenAI
-Agents SDK, LlamaIndex, or Google ADK** — and bring **just that control layer** to
-the tools it calls, without rebuilding on the full Tulip SDK.
+[Tulip](https://tulipagents.ai) is an open-source **agentic harness** — the
+control runtime for agents that act: a consequential action runs only after your
+policy clears it, waits for a person when it matters, and lands on a record you
+can prove. `tulip-frameworks` lets you keep the agent you already have — in
+**LangChain, LangGraph, CrewAI, the OpenAI Agents SDK, LlamaIndex, or Google
+ADK** — and bring **just that control layer** to the tools it calls, without
+rebuilding on the full Tulip SDK.
 
 You wrap a tool once. From then on, when the agent decides to refund an order,
 disable an account, or run a deploy, the gate decides whether that action is
@@ -20,8 +20,8 @@ allowed, held for a human, or denied — and writes the decision down either way
 ## Why this exists
 
 An agent that can only read is easy to trust. An agent that can *act* is not: the
-thing deciding is a language model, and a prompt injection, a confused chain of
-thought, or a bad retrieval can end with `refund(order, 1_000_000)`. A system
+thing deciding is a language model, and a bad retrieval, a confused chain of
+thought, or a prompt injection can end with `refund(order, 1_000_000)`. A system
 prompt is a guideline the model can ignore. Tulip's answer is a check in **real
 code, outside the model**, between the decision and the side effect — the model
 can be fooled; the action still doesn't execute unless your policy allows.
@@ -84,11 +84,13 @@ of `refund`. Now:
 - A refund in a non-production environment **runs** and is recorded.
 - A **production** refund is **held for a human** — the function never executes;
   the agent gets back a structured "held for approval" result it can act on.
-- Every decision lands on `trail`, which you can `trail.verify()` (tamper-evidence)
-  and `trail.export_jsonl()` (ship to a SIEM or warehouse).
+- Every decision lands on `trail`, which you can `trail.verify()` (tamper-evident —
+  editing any record breaks verification) and `trail.export_jsonl()` (ship to a
+  SIEM — a security team's log platform — or a warehouse).
 
-A prompt injection that talks the model into a thousand production refunds produces
-a thousand *held* actions and zero executed ones.
+Whatever leads the model to attempt a thousand production refunds — a bad
+retrieval, a runaway loop, or a prompt injection — the result is a thousand
+*held* actions and zero executed ones.
 
 ---
 
