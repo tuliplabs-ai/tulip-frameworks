@@ -50,6 +50,12 @@ dependencies = [
     "tulip-agents>=2.0",
 ]
 
+[project.scripts]
+# Claude Code's PreToolUse hook — `pip install` IS the integration: wire this
+# command into .claude/settings.json and every tool call is weighed by the
+# gateway's /v1/admit with a recorded decision.
+tulip-claude-gate = "tulip_frameworks.claude_code:main"
+
 [project.optional-dependencies]
 # One extra per framework. The bridge code is thin; the extra just pins the
 # upstream package its module imports lazily.

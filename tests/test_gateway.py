@@ -214,7 +214,10 @@ async def test_approval_lifecycle_is_pollable_and_single_use() -> None:
 
     assert await policy.approval_state("appr-1") == "approved"
     assert await policy.consume("appr-1") is True
-    assert stub.calls[0]["url"].endswith("?tenant=acme")
+    # Tenancy travels as the gateway's own header on every call — the old
+    # ?tenant= query param is dead server-side and no longer sent.
+    assert stub.calls[0]["url"].endswith("/v1/admit/approval/appr-1")
+    assert stub.calls[0]["headers"]["x-tulip-tenant"] == "acme"
 
     stub.replies["POST /v1/admit/approval/appr-1/consume"] = (409, {"detail": "already consumed"})
     stub.replies["GET /v1/admit/approval/appr-1"] = (404, {"detail": "unknown approval_id"})

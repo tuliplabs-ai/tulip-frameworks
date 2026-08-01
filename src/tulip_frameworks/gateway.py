@@ -32,7 +32,7 @@ import urllib.request
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from typing import Any, TypeVar
-from urllib.parse import quote, urlencode
+from urllib.parse import quote
 
 from tulip.control import Action, AdmissionError, ApprovalDecision, AuditTrail
 
@@ -116,23 +116,23 @@ class RemotePolicy:
         self._headers: dict[str, str] = {"content-type": "application/json"}
         if token:
             self._headers["authorization"] = f"Bearer {token}"
+        # Tenancy travels as the gateway's own header. The gateway resolves the
+        # caller's tenant from authentication (the verified token, or this
+        # header in local/dev mode) on EVERY route — submitting a hold under a
+        # body-supplied tenant and reading it back under the caller's used to
+        # split-brain the lifecycle: the hold existed, and approval_state()
+        # could never see it.
+        if tenant:
+            self._headers["x-tulip-tenant"] = tenant
 
     # -- transport ---------------------------------------------------------
 
-    def _url(self, path: str, *, with_tenant: bool = False) -> str:
-        url = f"{self.base_url}{path}"
-        if with_tenant and self.tenant:
-            url = f"{url}?{urlencode({'tenant': self.tenant})}"
-        return url
-
-    async def _call(
-        self, method: str, path: str, payload: Any = None, *, tenant: bool = False
-    ) -> Any:
+    async def _call(self, method: str, path: str, payload: Any = None) -> Any:
         body = json.dumps(payload).encode() if payload is not None else None
         status, raw = await asyncio.to_thread(
             self._transport,
             method,
-            self._url(path, with_tenant=tenant),
+            f"{self.base_url}{path}",
             body,
             self._headers,
             self.timeout,
@@ -206,7 +206,7 @@ class RemotePolicy:
     async def approval_state(self, approval_id: str) -> str | None:
         """Poll a held action: ``pending`` / ``approved`` / ``denied`` / ``consumed``."""
         try:
-            data = await self._call("GET", f"/v1/admit/approval/{quote(approval_id)}", tenant=True)
+            data = await self._call("GET", f"/v1/admit/approval/{quote(approval_id)}")
         except GatewayError:
             return None
         state: str | None = data.get("state")
@@ -215,9 +215,7 @@ class RemotePolicy:
     async def consume(self, approval_id: str) -> bool:
         """Claim an approved hold. Single-use: a second claim returns ``False``."""
         try:
-            await self._call(
-                "POST", f"/v1/admit/approval/{quote(approval_id)}/consume", {}, tenant=True
-            )
+            await self._call("POST", f"/v1/admit/approval/{quote(approval_id)}/consume", {})
         except GatewayError:
             return False
         return True
