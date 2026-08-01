@@ -217,11 +217,41 @@ No policy logic ships from this side — `policy_ref` names a policy the gateway
 and the transport is stdlib `urllib`, so this adds no dependency. Pass `transport=` to
 supply your own (custom auth, proxies, an HTTP client you already have).
 
-> The gateway does **not** authenticate `/v1/admit` today, and the "a principal may not
-> approve its own action" rule compares a caller-supplied `decided_by` string. Put the
-> gateway on a trusted network until that changes.
+> The gateway authenticates `/v1/admit` when `TULIP_GATEWAY_AUTH_REQUIRED` is on
+> (pass `token=` to `RemotePolicy`), and with auth on the deciding identity is the
+> verified caller — a body-supplied `decided_by` cannot be spoofed onto a decision.
+> Tenancy travels as the gateway's own `X-Tulip-Tenant` header (resolved from the
+> token in authenticated deployments), never as a caller-controlled query param.
 
 ---
+
+## Claude Code — `pip install` is the integration
+
+The package installs a `tulip-claude-gate` console script that speaks Claude
+Code's `PreToolUse` hook contract. Wire it into `.claude/settings.json` and
+every tool call Claude Code proposes is weighed by the gateway's `/v1/admit`
+**before it runs**, with the decision recorded on the same server-side policy
+and tamper-evident chain as every other agent:
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {"matcher": "*",
+       "hooks": [{"type": "command", "command": "tulip-claude-gate"}]}
+    ]
+  }
+}
+```
+
+Configure with environment variables: `TULIP_GATEWAY_URL` (required),
+`TULIP_GATEWAY_TOKEN`, `TULIP_TENANT`, `TULIP_POLICY_REF`, `TULIP_PRINCIPAL`,
+`TULIP_ENVIRONMENT`. ALLOW passes the call through; DENY blocks it with the
+policy's reason on screen; REQUIRE_HUMAN maps to Claude Code's own permission
+prompt — the human-approval step, with the gateway's `approval_id` in the
+reason. If the gateway cannot render a decision the hook **fails closed**
+(set `TULIP_FAIL_OPEN=1` to choose otherwise): the dangerous actions must
+never be the ones that slip through by accident.
 
 ## Test your gate offline — no LLM, no network
 
