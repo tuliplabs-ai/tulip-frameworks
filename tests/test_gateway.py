@@ -277,3 +277,66 @@ def test_transport_returns_the_body_of_a_non_2xx_answer(http_gateway: str) -> No
     status, body = _urllib_transport("GET", f"{http_gateway}/nope", None, {}, 5.0)
     assert status == 501  # the stub server implements POST only
     assert body  # the server's error page, passed through for the error message
+
+
+# ── evidence return (E18): the loop closes after perform ─────────────────────
+ALLOW_TOKEN = {**ALLOW, "decision_token": "tok.abc"}
+PERFORMED_OK = {"audit_id": "aud-1", "recorded": True}
+
+
+async def test_admit_reports_performed_after_the_side_effect_runs() -> None:
+    stub = StubTransport(
+        {"POST /v1/admit": (200, ALLOW_TOKEN), "POST /v1/admit/performed": (200, PERFORMED_OK)}
+    )
+
+    async def perform() -> str:
+        return "done"
+
+    out = await RemotePolicy("http://gw", transport=stub).admit(_refund(), perform)
+
+    assert out == "done"
+    report = stub.calls[-1]
+    assert report["url"] == "http://gw/v1/admit/performed"
+    assert report["body"] == {"decision_token": "tok.abc", "result": "success", "detail": ""}
+
+
+async def test_a_failed_perform_is_reported_as_a_failure_and_reraised() -> None:
+    """'It ran and broke' is evidence too — the chain must not show silence."""
+    stub = StubTransport(
+        {"POST /v1/admit": (200, ALLOW_TOKEN), "POST /v1/admit/performed": (200, PERFORMED_OK)}
+    )
+
+    async def perform() -> str:
+        raise RuntimeError("provider 502")
+
+    with pytest.raises(RuntimeError):
+        await RemotePolicy("http://gw", transport=stub).admit(_refund(), perform)
+
+    report = stub.calls[-1]
+    assert report["body"]["result"] == "failure"
+    assert report["body"]["detail"] == "RuntimeError"
+
+
+async def test_a_rejected_report_never_undoes_the_side_effect() -> None:
+    """Best-effort by design: record-keeping failure must not un-happen the work."""
+    stub = StubTransport(
+        {"POST /v1/admit": (200, ALLOW_TOKEN), "POST /v1/admit/performed": (409, {"detail": "x"})}
+    )
+
+    out = await RemotePolicy("http://gw", transport=stub).admit(_refund(), _done)
+
+    assert out == "done"  # the 409 was swallowed; the caller keeps the result
+
+
+async def test_an_allow_without_a_token_reports_nothing() -> None:
+    """Backward compatible: an older gateway's ALLOW simply closes no loop."""
+    stub = StubTransport({"POST /v1/admit": (200, ALLOW)})
+
+    out = await RemotePolicy("http://gw", transport=stub).admit(_refund(), _done)
+
+    assert out == "done"
+    assert [c["url"] for c in stub.calls] == ["http://gw/v1/admit"]
+
+
+async def _done() -> str:
+    return "done"

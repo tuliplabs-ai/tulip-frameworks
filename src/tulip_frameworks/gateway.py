@@ -62,6 +62,10 @@ class RemoteDecision:
     decision: ApprovalDecision
     approval_id: str | None
     audit_id: str
+    #: Signed, single-use proof of an ALLOW — presented back on
+    #: ``POST /v1/admit/performed`` after the side effect runs. ``None`` unless
+    #: the outcome was allow.
+    decision_token: str | None = None
 
     @property
     def allowed(self) -> bool:
@@ -171,7 +175,28 @@ class RemotePolicy:
             ),
             approval_id=data.get("approval_id"),
             audit_id=str(data.get("audit_id", "")),
+            decision_token=data.get("decision_token"),
         )
+
+    async def report_performed(
+        self, decision_token: str, *, result: str = "success", detail: str = ""
+    ) -> bool:
+        """Report that an ALLOW'd side effect ran — the evidence half of the loop.
+
+        Best-effort by design: the side effect has already happened, and a
+        record-keeping failure must not un-happen it. Returns whether the
+        report was accepted; a ``False`` is itself a signal worth alerting on
+        (the chain will show a decision with no matching performed-event).
+        """
+        try:
+            await self._call(
+                "POST",
+                "/v1/admit/performed",
+                {"decision_token": decision_token, "result": result, "detail": detail},
+            )
+        except GatewayError:
+            return False
+        return True
 
     async def admit(
         self,
@@ -199,7 +224,20 @@ class RemotePolicy:
             )
         if not remote.allowed:
             raise RemoteAdmissionError(remote.decision, remote.approval_id)
-        return await perform()
+        # The perform is local; the proof is not. Whatever happens next is
+        # reported back against the decision's token — success or failure —
+        # so the chain shows what actually ran, not only what was allowed.
+        try:
+            result = await perform()
+        except Exception as exc:
+            if remote.decision_token:
+                await self.report_performed(
+                    remote.decision_token, result="failure", detail=type(exc).__name__
+                )
+            raise
+        if remote.decision_token:
+            await self.report_performed(remote.decision_token)
+        return result
 
     # -- out-of-band approval lifecycle ------------------------------------
 
