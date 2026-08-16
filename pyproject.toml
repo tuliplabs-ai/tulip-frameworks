@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tulip-frameworks"
-version = "0.1.0"
+version = "1.0.0"
 description = "Drop Tulip's control runtime (admit() gate + tamper-evident audit) into the agent framework you already use — LangChain, LangGraph, CrewAI, the OpenAI Agents SDK, LlamaIndex."
 readme = "README.md"
 license = "Apache-2.0"
