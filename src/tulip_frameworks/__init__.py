@@ -35,7 +35,7 @@ from tulip_frameworks.core import (
 from tulip_frameworks.gateway import RemotePolicy
 from tulip_frameworks.policy_presets import action_gate_policy
 
-__version__ = "0.1.0"
+__version__ = "1.0.0"
 
 __all__ = [
     "DENIED",
