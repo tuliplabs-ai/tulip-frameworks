@@ -103,11 +103,19 @@ jobs:
           name: dist
           path: dist/
 
-      # pypa/gh-action-pypi-publish@v1.14.0 — Trusted Publishing (OIDC).
+      # pypa/gh-action-pypi-publish@v1.14.2 — Trusted Publishing (OIDC).
+      #
+      # Moved off v1.14.0 on 2026-08-17 — the same fix the SDK made on
+      # 2026-08-12. `requires = ["hatchling"]` is unpinned, so the build
+      # machine picks up a hatchling emitting `Metadata-Version: 2.5`, and
+      # v1.14.0's bundled twine refuses it:
+      #   InvalidDistribution: '2.5' is not a valid metadata version
+      # v1.0.0 failed on exactly this, after the tag was already published —
+      # which is the worst moment to find out.
       # Requires a "pending/trusted publisher" on pypi.org:
       #   PyPI project = tulip-frameworks, owner = tuliplabs-ai,
       #   repository = tulip-frameworks, workflow = _release.yml, environment = pypi
       - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33
         with:
           packages-dir: dist/
